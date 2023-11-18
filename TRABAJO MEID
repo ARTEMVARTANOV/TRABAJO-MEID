@@ -1,0 +1,303 @@
+# Cargar librerias
+library(MASS)
+library(carData)
+library(car)
+library(nortest)
+library(lmtest)
+library(corrplot)
+library(leaps)
+
+
+# Definir función predict.regsubsets
+predict.regsubsets <- function(object, newdata, id,...){
+  form <-as.formula(object$call[[2]])
+  mat <- model.matrix(form,newdata)
+  coefi <- coef(object,id=id)
+  xvars <- names(coefi)
+  mat[,xvars]%*%coefi
+}
+
+# REGRESION LINEAL MULTIPLE
+
+# Cargar datos
+datos <- read.csv(file="C:\\Users\\mario\\Downloads\\IndianWaterQuality.csv")
+
+# Mostrar resumen de datos
+summary(datos)
+
+# Eliminar filas con valores NA
+datos = na.omit(datos)
+
+# Mostrar resumen actualizado de datos
+summary(datos)
+dim(datos)
+
+# Eliminar columnas "Habitation.Name" , "Year" (strings) y "Potability" (booleans)
+datos <- subset(datos, select = -c(Habitation.Name, Year, Potability))
+
+# Ajustar modelo de regresión lineal
+modelo <- lm(ph ~ ., data=datos)
+summary(modelo) # Mostrar resumen del modelo ajustado
+
+# Calculamos correlacion
+cor(datos)
+# No es necesario eliminar nada dado que no hay una correlacion mayor que 0,7 ni menor que -0,7
+
+# Mostrar correlaciones actualizadas
+corrplot(corr = cor(datos), method = "number",
+         tl.cex = 1, number.cex = 1, cl.pos = "n",
+         main = "Coeficiente de Spearman (sin variables correlacionadas)")
+
+# Boxplot de la variable dependiente "ph"
+boxplot(datos$ph, main="Boxplot de ph", ylab="ph")
+
+# Boxplots de las variables independientes
+par(mfrow=c(1, 3))  # Configurar un diseño de 1 fila y 3 columnas para los gráficos
+for (col in colnames(datos)) {
+  if (col != "ph") {
+    boxplot(datos[, col], main=paste("Boxplot de", col), ylab=col)
+  }
+}
+
+# Eliminamos outliers
+# Calcular y eliminar outliers para todas las variables numéricas
+for (col in names(datos)) {
+  if (is.numeric(datos[[col]])) {  # Verificar si la columna es numérica (en este caso ya eliminamos las no numéricas)
+    Q1 <- quantile(datos[[col]], 0.25)
+    Q3 <- quantile(datos[[col]], 0.75)
+    IQR <- Q3 - Q1
+    
+    # Definir un umbral para los outliers
+    umbral <- 1.5 * IQR
+    
+    # Identificar outliers
+    outliers <- datos[[col]] < (Q1 - umbral) | datos[[col]] > (Q3 + umbral)
+    
+    # Filtrar los datos sin outliers
+    datos <- datos[!outliers, ]
+  }
+}
+dim(datos)
+
+# Boxplot de la variable dependiente "ph" después de eliminar outliers
+boxplot(datos$ph, main="Boxplot de ph (sin outliers)", ylab="ph")
+
+# Boxplots de las variables independientes después de eliminar outliers
+par(mfrow=c(1, 3))
+for (col in colnames(datos)) {
+  if (col != "ph") {
+    boxplot(datos[, col], main=paste("Boxplot de", col, "(sin outliers)"), ylab=col)
+  }
+}
+
+
+# Separamos en Train y Test
+set.seed(1)
+train = sample(c(TRUE,FALSE),size = nrow(datos), replace = TRUE, prob = c(0.7, 0.3))
+datos.train = datos[train,]
+datos.test = datos[!train,]
+
+modelo <- lm(ph ~ .,data=datos.train)
+summary(modelo) # Mostramos el modelo ajustado
+
+## Gráfico de residuos contra valores ajustados
+plot(modelo, which = c(1, 2))
+
+# Gráfico QQ
+qqPlot(modelo, main = "Gráfico QQ")
+
+## VALIDACIÓN CRUZADA k-folds
+k <- 5 # Número de grupos igual a n
+set.seed(5)
+folds <- sample(x=1:k, size =nrow(datos.train), replace = TRUE)
+cv.errors <- matrix(NA, k, 8, dimnames = list(NULL,paste(1:8)))
+for (j in 1:k){
+  regfit.best <- regsubsets(ph~., data=datos.train[folds !=j,])
+  for (i in 1:8){
+    pred <- predict.regsubsets(regfit.best, newdata=datos.train[folds==j,], id=i)
+    cv.errors[j,i] <- mean((datos.train$ph[folds == j]-pred)^2)
+  }
+}
+cv.errors
+
+# Gráfico de errores de validación cruzada por número de variables
+plot(cv.errors, type = "l", col = 1:(k+1), lty = 1, xlab = "Número de variables", ylab = "Error")
+legend("topright", legend = 1:(k+1), col = 1:(k+1), lty = 1, title = "Número de variables")
+
+mean.cv.errors <- apply(cv.errors, 2, mean)
+mean.cv.errors
+coef(regfit.best, which.min(mean.cv.errors))
+# Comprobación
+model.cv <- lm(ph ~ Hardness + Solids + Chloramines, data=datos.train)
+summary(model.cv)
+plot(lm(ph ~ Hardness + Solids + Chloramines, data=datos.train))
+plot(lm(ph ~ Hardness + Solids + Chloramines, data=datos.train), which=c(1,2))
+residualPlot(model.cv)
+influenceIndexPlot(model.cv)
+shapiro.test(resid(model.cv))
+durbinWatsonTest(model.cv)
+
+# Por ultimo, evaluamos los supuestos de normalidad, independencia y homocedasticidad.
+summary(model.cv)
+confint(model.cv) # Mostramos los intervalos de confianza de los coeficientes
+residuos=model.cv$residuals
+plot(residuos)
+
+#Estudiamos la normalidad
+lillie.test(residuos)
+
+#Estudiamos la homocedasticidad
+bptest(model.cv)
+
+#Estudiamos la independencia
+dwtest(model.cv)
+
+#Calculamos el ECM
+pred = predict(model.cv,newdata=datos.test)
+mean((pred-datos.test$ph)^2)
+
+
+# MÉTODO RIDGE
+
+#install.packages("glmnet") #solo si no esta ya instalado
+library(glmnet)
+x<-model.matrix(ph~.,datos.train)[,-1]
+y<-datos.train$ph
+grid<-10^seq(10,-2,length=100)
+ridge.mod<-glmnet(x,y,alpha=0,lambda=grid)
+
+x.train<-model.matrix(ph~.,datos.train)[,-1]
+y.train<-datos.train$ph
+x.test<-model.matrix(ph~.,datos.test)[,-1]
+y.test<-datos.test$ph
+
+
+set.seed(1)
+cv.out<-cv.glmnet(x.train,y.train,alpha=0)
+plot(cv.out)
+(bestlam<-cv.out$lambda.min)
+
+ridge.pred<-predict(ridge.mod,s=bestlam,newx=x.test)
+mean((ridge.pred-y.test)^2)
+
+out<-glmnet(x,y,alpha=0)
+predict(out,type="coefficients",s=bestlam)
+# Gráfico de coeficientes Ridge
+plot(ridge.mod, xvar="lambda", label=TRUE)
+
+
+# MÉTODO LASSO
+
+lasso.mod<-glmnet(x.train,y.train,alpha=1,lambda=grid)
+plot(lasso.mod)
+
+set.seed(1)
+cv.out<-cv.glmnet(x.train,y.train,alpha=1)
+plot(cv.out)
+bestlam<-cv.out$lambda.min
+lasso.pred<-predict(lasso.mod,s=bestlam,newx=x.test)
+mean((lasso.pred-y.test)^2)
+
+out<-glmnet(x,y,alpha=1,lambda=grid)
+lasso.coef<-predict(out,type="coefficients",s=bestlam)
+lasso.coef
+lasso.coef[lasso.coef!=0]
+# Gráfico de coeficientes Lasso
+plot(lasso.mod, xvar="lambda", label=TRUE)
+
+
+# MÉTODO ELASTIC NET
+
+elasnet.mod<-glmnet(x.train,y.train,alpha=0.9,lambda=grid)
+set.seed(25)
+cv.out<-cv.glmnet(x.train,y.train,alpha=0.9)
+plot(cv.out)
+bestlam<-cv.out$lambda.min
+elasnet.pred<-predict(elasnet.mod,s=bestlam,newx=x.test)
+mean((elasnet.pred-y.test)^2)
+
+out<-glmnet(x,y,alpha=0.9,lambda=grid)
+elasnet.coef<-predict(out,type="coefficients",s=bestlam)
+elasnet.coef
+elasnet.coef[elasnet.coef!=0]
+# Gráfico de coeficientes Elastic Net
+plot(elasnet.mod, xvar="lambda", label=TRUE)
+
+
+# En caso de querer seleccionar el valor de α que minimice el ECM del modelo, lo podemos
+# obtener comenzando con el siguiente bucle:
+
+models <- list()
+for (i in 0:20) {
+  name <- paste0("alpha", i/20)
+  models[[name]] <-
+    cv.glmnet(x.train,y.train, type.measure="mse", alpha=i/20)
+}
+
+# Con este bucle, hemos ejecutado la funcion cv.glmnet() 21 veces, cada una de ellas con
+# un valor de α diferente, tomando incrementos de tamaño 0.05. Queremos explorar estos
+# modelos mas de cerca para ver cual produce el mejor ajuste del modelo,
+
+results <- data.frame()
+for (i in 0:20) {
+  name <- paste0("alpha", i/20)
+  ## Utilizamos cada modelo para predecir ’y’ dado el conjunto de datos de prueba
+  predicted <- predict(models[[name]],
+                       s=models[[name]]$lambda.min, newx=x.test)
+  ## Calculamos el ECM
+  mse <- mean((predicted-y.test)^2)
+  ## Almacenamos los resultados
+  temp <- data.frame(alpha=i/20, lambda=models[[name]]$lambda.min, mse=mse, name=name)
+  results <- rbind(results, temp)
+}
+print(results)
+
+plot(results$alpha, results$mse)
+pos.min=which.min(results$mse)
+(minimo=results[pos.min,])
+
+# Como podemos ver, el valor de α que produce el mejor ajuste (minimiza el ECM) es 0.2
+# y el modelo resultante contiene los siguientes predictores:
+
+out<-glmnet(x,y,alpha=minimo$alpha,lambda=minimo$lambda)
+elasnet.coef<-predict(out,type="coefficients",s=bestlam)
+elasnet.coef
+elasnet.coef[elasnet.coef!=0]
+
+
+# ANÁLISIS DE COMPONENTES PRINCIPALES (PCA)
+
+# MÉTODOS DE REDUCCIÓN DE DIMENSIONES
+
+# PCR
+
+library(pls)
+set.seed(1)
+pcr.fit<-pcr(ph~.,data=datos.train,scale=TRUE,validation="CV")
+validationplot(pcr.fit,val.type="MSEP")
+MSEP(pcr.fit)
+
+# Ahora encontramos que el error de validacion cruzada mas bajo ocurre cuando se usan M = 5 componentes. Calculamos el ECM en el conjunto de prueba de la siguiente manera.
+
+pcr.pred<-predict(pcr.fit,x.test,ncomp=5)
+mean((pcr.pred-y.test)^2)
+
+
+# PLS (el enfoque PLS intenta encontrar direcciones que ayuden a explicar tanto la respuesta como los predictores)
+
+set.seed(1)
+pls.fit<-plsr(ph~., data = datos.train, scale = TRUE, validation = "CV")
+summary(pls.fit)
+validationplot(pls.fit,val.type="MSEP")
+
+# Realizamos ahora el PLS usando el conjunto de datos train, usando M = 1, el numero de
+# componentes identificados por validacion cruzada.
+
+pls.fit<-plsr(ph~.,data=datos.train,scale=TRUE,ncomp=1)
+summary(pls.fit)
+
+# Ahora evaluamos el correspondiente ECM del conjunto de prueba.
+
+pls.pred<-predict(pls.fit,x.test,ncomp=1)
+mean((pls.pred-y.test)^2)
+
