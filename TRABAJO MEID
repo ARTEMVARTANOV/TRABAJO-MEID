@@ -1,11 +1,17 @@
 # Cargar librerias
 library(MASS)
 library(carData)
+library(caret)
 library(car)
 library(nortest)
 library(lmtest)
 library(corrplot)
 library(leaps)
+library(glmnet)
+library(pls)
+library(e1071)
+library(ROCR)
+
 
 
 # Definir función predict.regsubsets
@@ -17,83 +23,138 @@ predict.regsubsets <- function(object, newdata, id,...){
   mat[,xvars]%*%coefi
 }
 
-# REGRESION LINEAL MULTIPLE
+# ESTUDIO DESCRIPTIVO DATASET 
 
 # Cargar datos
 datos <- read.csv(file="C:\\Users\\mario\\Downloads\\IndianWaterQuality.csv")
 
 # Mostrar resumen de datos
 summary(datos)
+head(datos)
 
 # Eliminar filas con valores NA
 datos = na.omit(datos)
 
 # Mostrar resumen actualizado de datos
 summary(datos)
+head(datos)
+
+# Crear gráficos para cada variable
+par(mfrow = c(3, 3))  # 3 filas y 3 columnas
+for (col in names(datos)) {
+  if (col != "Habitation.Name" && col != "Year") {
+    hist(datos[[col]], main = col, xlab = col, col = "turquoise", border = "black")
+  }
+}
+
 dim(datos)
+
+#Dejamos preparado este conjunto para más adelante la regresión logística
+datos_logistica <- subset(datos, select = -c(Habitation.Name, Year))
 
 # Eliminar columnas "Habitation.Name" , "Year" (strings) y "Potability" (booleans)
 datos <- subset(datos, select = -c(Habitation.Name, Year, Potability))
+summary(datos)
+head(datos)
+
+
+# REGRESION LINEAL MULTIPLE
 
 # Ajustar modelo de regresión lineal
 modelo <- lm(ph ~ ., data=datos)
 summary(modelo) # Mostrar resumen del modelo ajustado
 
+# Ver simetría
+skewness(datos$ph)
+skewness(datos$Hardness)
+skewness(datos$Solids)
+skewness(datos$Chloramines)
+skewness(datos$Sulfate)
+skewness(datos$Conductivity)
+skewness(datos$Organic_carbon)
+skewness(datos$Trihalomethanes)
+skewness(datos$Turbidity)
+# Son todas simétricas dado que el skewness está entre 2 y -2.
+
+
+#WEBGRAFIA @CARLOS_MANTILLA
+
+# Eliminamos outliers
+for (columna in names(datos)) {
+  outlier_indices <- c(1)
+  while (length(outlier_indices) > 0) {
+    iqr <- IQR(datos[[columna]])
+    umbral <- 1.5
+    
+    # Identificar los índices de los outliers usando el método del IQR
+    boxplot_stats <- boxplot.stats(datos[[columna]])
+    
+    # Obtener los índices de los valores atípicos
+    outlier_indices <- boxplot_stats$out
+    outlier_indices
+    
+    # Encontrar el índice del mayor valor atípico (el más extremo en términos de magnitud)
+    indice_mayor_outlier <- which.max(datos[[columna]])
+    indice_menor_outlier <- which.min(datos[[columna]])
+    
+    if ((max(datos[[columna]]) - mean(datos[[columna]])) > (mean(datos[[columna]]) - min(datos[[columna]]))) {
+      quitar_outlier = indice_mayor_outlier
+    }
+    else {
+      quitar_outlier = indice_menor_outlier
+    }
+    
+    # Eliminar la fila correspondiente al índice del valor atípico
+    datos <- datos[-quitar_outlier, ]
+    
+    # Reajustar los índices y ordenar el conjunto de datos
+    datos <- droplevels(datos)
+    rownames(datos) <- NULL  # Eliminar los índices existentes
+    boxplot(datos[[columna]], main = columna)
+  }
+}
+
+
+dim(datos)
+
 # Calculamos correlacion
-cor(datos)
+cor(x=datos, method="spearman")
 # No es necesario eliminar nada dado que no hay una correlacion mayor que 0,7 ni menor que -0,7
 
 # Mostrar correlaciones actualizadas
-corrplot(corr = cor(datos), method = "number",
-         tl.cex = 1, number.cex = 1, cl.pos = "n",
-         main = "Coeficiente de Spearman (sin variables correlacionadas)")
+corrplot(corr = cor(x = datos, method = "spearman"), method = "number",
+         tl.cex = 1,number.cex = 1, cl.pos = "n",
+         main="Coeficiente de Spearman")
 
-# Boxplot de la variable dependiente "ph"
-boxplot(datos$ph, main="Boxplot de ph", ylab="ph")
+# Ajustar modelo de regresión lineal
+modelo <- lm(ph ~ ., data=datos)
+summary(modelo) # Mostrar resumen del modelo ajustado
 
-# Boxplots de las variables independientes
-par(mfrow=c(1, 3))  # Configurar un diseño de 1 fila y 3 columnas para los gráficos
-for (col in colnames(datos)) {
-  if (col != "ph") {
-    boxplot(datos[, col], main=paste("Boxplot de", col), ylab=col)
-  }
-}
-
-# Eliminamos outliers
-# Calcular y eliminar outliers para todas las variables numéricas
+# Crear gráficos para cada variable sin outliers
+par(mfrow = c(3, 3))  # 3 filas y 3 columnas
 for (col in names(datos)) {
-  if (is.numeric(datos[[col]])) {  # Verificar si la columna es numérica (en este caso ya eliminamos las no numéricas)
-    Q1 <- quantile(datos[[col]], 0.25)
-    Q3 <- quantile(datos[[col]], 0.75)
-    IQR <- Q3 - Q1
-    
-    # Definir un umbral para los outliers
-    umbral <- 1.5 * IQR
-    
-    # Identificar outliers
-    outliers <- datos[[col]] < (Q1 - umbral) | datos[[col]] > (Q3 + umbral)
-    
-    # Filtrar los datos sin outliers
-    datos <- datos[!outliers, ]
+  if (col != "Habitation.Name" && col != "Year") {
+    hist(datos[[col]], main = col, xlab = col, col = "turquoise", border = "black")
   }
 }
-dim(datos)
+# Restaurar la configuración original de par() para evitar efectos secundarios
+par(mfrow = c(1, 1))
 
-# Boxplot de la variable dependiente "ph" después de eliminar outliers
-boxplot(datos$ph, main="Boxplot de ph (sin outliers)", ylab="ph")
-
-# Boxplots de las variables independientes después de eliminar outliers
-par(mfrow=c(1, 3))
-for (col in colnames(datos)) {
-  if (col != "ph") {
-    boxplot(datos[, col], main=paste("Boxplot de", col, "(sin outliers)"), ylab=col)
-  }
-}
+# Ver simetría
+skewness(datos$ph)
+skewness(datos$Hardness)
+skewness(datos$Solids)
+skewness(datos$Chloramines)
+skewness(datos$Sulfate)
+skewness(datos$Conductivity)
+skewness(datos$Organic_carbon)
+skewness(datos$Trihalomethanes)
+skewness(datos$Turbidity)
 
 
 # Separamos en Train y Test
 set.seed(1)
-train = sample(c(TRUE,FALSE),size = nrow(datos), replace = TRUE, prob = c(0.7, 0.3))
+train = sample(c(TRUE,FALSE),size = nrow(datos), replace = TRUE, prob = c(0.78, 0.22))
 datos.train = datos[train,]
 datos.test = datos[!train,]
 
@@ -102,6 +163,7 @@ summary(modelo) # Mostramos el modelo ajustado
 
 ## Gráfico de residuos contra valores ajustados
 plot(modelo, which = c(1, 2))
+par(mfrow = c(1, 1))
 
 # Gráfico QQ
 qqPlot(modelo, main = "Gráfico QQ")
@@ -120,28 +182,28 @@ for (j in 1:k){
 }
 cv.errors
 
-# Gráfico de errores de validación cruzada por número de variables
-plot(cv.errors, type = "l", col = 1:(k+1), lty = 1, xlab = "Número de variables", ylab = "Error")
-legend("topright", legend = 1:(k+1), col = 1:(k+1), lty = 1, title = "Número de variables")
-
 mean.cv.errors <- apply(cv.errors, 2, mean)
 mean.cv.errors
 coef(regfit.best, which.min(mean.cv.errors))
 # Comprobación
-model.cv <- lm(ph ~ Hardness + Solids + Chloramines, data=datos.train)
+model.cv <- lm(ph ~ Hardness + Solids, data=datos.train)
 summary(model.cv)
-plot(lm(ph ~ Hardness + Solids + Chloramines, data=datos.train))
-plot(lm(ph ~ Hardness + Solids + Chloramines, data=datos.train), which=c(1,2))
+plot(lm(ph ~ Hardness + Solids, data=datos.train))
+plot(lm(ph ~ Hardness + Solids, data=datos.train), which=c(1,2))
 residualPlot(model.cv)
 influenceIndexPlot(model.cv)
-shapiro.test(resid(model.cv))
 durbinWatsonTest(model.cv)
+
+# Por los valores obtenidos podemos concluir que no existe multicolinealidad entre las variables
+(vif=vif(model.cv))
+(tol=1/vif)
 
 # Por ultimo, evaluamos los supuestos de normalidad, independencia y homocedasticidad.
 summary(model.cv)
 confint(model.cv) # Mostramos los intervalos de confianza de los coeficientes
 residuos=model.cv$residuals
 plot(residuos)
+hist(residuos)
 
 #Estudiamos la normalidad
 lillie.test(residuos)
@@ -152,15 +214,18 @@ bptest(model.cv)
 #Estudiamos la independencia
 dwtest(model.cv)
 
-#Calculamos el ECM
+# Observamos que los residuos verifican los tres supuestos anteriores.
+
+#Calculamos el ECM y su raíz
 pred = predict(model.cv,newdata=datos.test)
-mean((pred-datos.test$ph)^2)
+ECM = mean((pred-datos.test$ph)^2)
+ECM
+RMSE=(sqrt(ECM))
+RMSE
 
 
 # MÉTODO RIDGE
 
-#install.packages("glmnet") #solo si no esta ya instalado
-library(glmnet)
 x<-model.matrix(ph~.,datos.train)[,-1]
 y<-datos.train$ph
 grid<-10^seq(10,-2,length=100)
@@ -178,10 +243,14 @@ plot(cv.out)
 (bestlam<-cv.out$lambda.min)
 
 ridge.pred<-predict(ridge.mod,s=bestlam,newx=x.test)
-mean((ridge.pred-y.test)^2)
+ECM = mean((ridge.pred-y.test)^2)
+ECM
+RMSE=(sqrt(ECM))
+RMSE
 
 out<-glmnet(x,y,alpha=0)
 predict(out,type="coefficients",s=bestlam)
+
 # Gráfico de coeficientes Ridge
 plot(ridge.mod, xvar="lambda", label=TRUE)
 
@@ -202,27 +271,12 @@ out<-glmnet(x,y,alpha=1,lambda=grid)
 lasso.coef<-predict(out,type="coefficients",s=bestlam)
 lasso.coef
 lasso.coef[lasso.coef!=0]
+
 # Gráfico de coeficientes Lasso
 plot(lasso.mod, xvar="lambda", label=TRUE)
 
 
 # MÉTODO ELASTIC NET
-
-elasnet.mod<-glmnet(x.train,y.train,alpha=0.9,lambda=grid)
-set.seed(25)
-cv.out<-cv.glmnet(x.train,y.train,alpha=0.9)
-plot(cv.out)
-bestlam<-cv.out$lambda.min
-elasnet.pred<-predict(elasnet.mod,s=bestlam,newx=x.test)
-mean((elasnet.pred-y.test)^2)
-
-out<-glmnet(x,y,alpha=0.9,lambda=grid)
-elasnet.coef<-predict(out,type="coefficients",s=bestlam)
-elasnet.coef
-elasnet.coef[elasnet.coef!=0]
-# Gráfico de coeficientes Elastic Net
-plot(elasnet.mod, xvar="lambda", label=TRUE)
-
 
 # En caso de querer seleccionar el valor de α que minimice el ECM del modelo, lo podemos
 # obtener comenzando con el siguiente bucle:
@@ -256,30 +310,29 @@ plot(results$alpha, results$mse)
 pos.min=which.min(results$mse)
 (minimo=results[pos.min,])
 
-# Como podemos ver, el valor de α que produce el mejor ajuste (minimiza el ECM) es 0.2
+# Como podemos ver, el valor de α que produce el mejor ajuste (minimiza el ECM) es 0.6
 # y el modelo resultante contiene los siguientes predictores:
-
 out<-glmnet(x,y,alpha=minimo$alpha,lambda=minimo$lambda)
 elasnet.coef<-predict(out,type="coefficients",s=bestlam)
 elasnet.coef
 elasnet.coef[elasnet.coef!=0]
 
+# Gráfico de coeficientes Elastic Net
+plot(elasnet.mod, xvar="lambda", label=TRUE)
 
-# ANÁLISIS DE COMPONENTES PRINCIPALES (PCA)
+
 
 # MÉTODOS DE REDUCCIÓN DE DIMENSIONES
 
 # PCR
 
-library(pls)
 set.seed(1)
 pcr.fit<-pcr(ph~.,data=datos.train,scale=TRUE,validation="CV")
 validationplot(pcr.fit,val.type="MSEP")
 MSEP(pcr.fit)
 
-# Ahora encontramos que el error de validacion cruzada mas bajo ocurre cuando se usan M = 5 componentes. Calculamos el ECM en el conjunto de prueba de la siguiente manera.
-
-pcr.pred<-predict(pcr.fit,x.test,ncomp=5)
+# Ahora encontramos que el error de validacion cruzada mas bajo ocurre cuando se usan M = 7 componentes. Calculamos el ECM en el conjunto de prueba de la siguiente manera.
+pcr.pred<-predict(pcr.fit,x.test,ncomp=7)
 mean((pcr.pred-y.test)^2)
 
 
@@ -292,12 +345,148 @@ validationplot(pls.fit,val.type="MSEP")
 
 # Realizamos ahora el PLS usando el conjunto de datos train, usando M = 1, el numero de
 # componentes identificados por validacion cruzada.
-
 pls.fit<-plsr(ph~.,data=datos.train,scale=TRUE,ncomp=1)
 summary(pls.fit)
 
 # Ahora evaluamos el correspondiente ECM del conjunto de prueba.
-
 pls.pred<-predict(pls.fit,x.test,ncomp=1)
 mean((pls.pred-y.test)^2)
 
+
+# REGRESIÓN LOGÍSTICA
+
+names(datos_logistica) #obtenemos los nombres de las caracter´ısticas
+dim(datos_logistica) #obtenemos la dimension de la matriz
+summary(datos_logistica)
+
+# Verificar si la columna "Potability" es numérica
+is_numeric <- is.numeric(datos_logistica$Potability)
+print(is_numeric)
+
+# Ver simetría antes de quitar outliers
+skewness(datos_logistica$Potability)
+
+par(mfrow = c(3, 3))
+
+# Eliminamos outliers
+for (columna in names(datos_logistica)) {
+  outlier_indices <- c(1)
+  while (length(outlier_indices) > 0) {
+    iqr <- IQR(datos_logistica[[columna]])
+    umbral <- 1.5
+    
+    # Identificar los índices de los outliers usando el método del IQR
+    boxplot_stats <- boxplot.stats(datos_logistica[[columna]])
+    
+    # Obtener los índices de los valores atípicos
+    outlier_indices <- boxplot_stats$out
+    outlier_indices
+    
+    # Encontrar el índice del mayor valor atípico (el más extremo en términos de magnitud)
+    indice_mayor_outlier <- which.max(datos_logistica[[columna]])
+    indice_menor_outlier <- which.min(datos_logistica[[columna]])
+    
+    if ((max(datos_logistica[[columna]]) - mean(datos_logistica[[columna]])) > (mean(datos_logistica[[columna]]) - min(datos_logistica[[columna]]))) {
+      quitar_outlier = indice_mayor_outlier
+    }
+    else {
+      quitar_outlier = indice_menor_outlier
+    }
+    
+    # Eliminar la fila correspondiente al índice del valor atípico
+    datos_logistica <- datos_logistica[-quitar_outlier, ]
+    
+    # Reajustar los índices y ordenar el conjunto de datos
+    datos_logistica <- droplevels(datos_logistica)
+    rownames(datos_logistica) <- NULL  # Eliminar los índices existentes
+    boxplot(datos_logistica[[columna]], main = columna)
+  }
+}
+
+dim(datos_logistica)
+par(mfrow = c(1, 1))
+
+# Ver correlaciones
+cor(datos_logistica,method="spearman")
+
+# Asegúrate de que Potability sea un factor con dos niveles
+datos_logistica$Potability <- as.factor(datos_logistica$Potability)
+
+# Separa los datos en conjuntos de entrenamiento y prueba
+set.seed(1)
+train <- sample(nrow(datos_logistica), ceiling(nrow(datos_logistica) * 0.7))
+datos_logistica.train <- datos_logistica[train, ]
+datos_logistica.test <- datos_logistica[-train, ]
+
+modelo_logistica <- glm(Potability ~ ., data=datos_logistica.train, family=binomial)
+summary(modelo_logistica) # Mostramos el modelo ajustado
+
+# Ajuste del modelo de regresión logística con validación cruzada LOOCV
+model <- train(Potability ~ .,
+               data = datos_logistica.train,
+               method = "glm",
+               family = binomial,
+               trControl = trainControl(method = "LOOCV"))
+
+# Mostrar un resumen del modelo
+model
+
+# Realizar predicciones en los datos de prueba
+glm.pred <- predict(model, datos_logistica.test)
+
+# Calcular la matriz de confusión
+confusionMatrix(glm.pred, datos_logistica.test$Potability)
+(cm<-table(glm.pred,datos_logistica.test$Potability))
+VP=cm[1,1]
+VN=cm[2,2]
+FP=cm[1,2]
+FN=cm[2,1]
+(accuracy=(VP+VN)/(VP+FN+VN+FP))
+(error=(FN+FP)/(VP+FN+VN+FP))
+(sensibilidad=VP/(VP+FN))
+(especificidad=VN/(VN+FP))
+(vpp=VP/(VP+FP))
+(vpn=VN/(VN+FN))
+(F1=2*(vpp*sensibilidad)/(vpp+sensibilidad))
+
+
+# Área bajo la curva (AUC) para la curva ROC
+pred <- prediction(as.numeric(glm.pred), as.numeric(datos_logistica.test$Potability))
+perf <- performance(pred, measure = "tpr", x.measure = "fpr")
+plot(perf, colorize = TRUE, type = "l")
+abline(a = 0, b = 1)
+
+# Calcular el AUC
+AUC <- performance(pred, measure = "auc")
+AUCaltura <- AUC@y.values
+cat("AUC:", AUCaltura[[1]])
+
+# k-Fold con k=10
+folds10 <- createFolds(datos_logistica.train$Potability, k = 10) # Creamos los 10 folds
+
+# k-Fold con k=10 y validación cruzada repetida
+model10 <- train(Potability ~ .,
+                 data = datos_logistica.train,
+                 method = "glm",
+                 family = binomial,
+                 trControl = trainControl(method = "repeatedcv", number = 10, index = folds10))
+
+# Mostrar un resumen del modelo con validación cruzada repetida
+model10
+
+# Realizar predicciones en los datos de prueba
+glm.pred10 <- predict(model10, datos_logistica.test)
+
+# Calcular la matriz de confusión
+confusionMatrix(glm.pred10, datos_logistica.test$Potability)
+
+# Área bajo la curva (AUC) para la curva ROC
+pred <- prediction(as.numeric(glm.pred10), as.numeric(datos_logistica.test$Potability))
+perf <- performance(pred, measure = "tpr", x.measure = "fpr")
+plot(perf, colorize = TRUE, type = "l")
+abline(a = 0, b = 1)
+
+# Calcular el AUC
+AUC <- performance(pred, measure = "auc")
+AUCaltura <- AUC@y.values
+cat("AUC:", AUCaltura[[1]])
