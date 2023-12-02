@@ -11,6 +11,11 @@ library(glmnet)
 library(pls)
 library(e1071)
 library(ROCR)
+library(olsrr)
+library(AICcmodavg)
+library(flexmix)
+library(psych)
+
 
 
 
@@ -55,6 +60,7 @@ datos_logistica <- subset(datos, select = -c(Habitation.Name, Year))
 # Eliminar columnas "Habitation.Name" , "Year" (strings) y "Potability" (booleans)
 datos <- subset(datos, select = -c(Habitation.Name, Year, Potability))
 summary(datos)
+describe(datos)
 head(datos)
 
 
@@ -78,6 +84,15 @@ skewness(datos$Turbidity)
 
 
 # Boxplot de la variable dependiente "ph"
+boxplot(datos$ph, main="Boxplot de ph", ylab="ph", range = 3)
+
+# Boxplots de las variables independientes
+for (col in colnames(datos)) {
+  if (col != "ph") {
+    boxplot(datos[, col], main=paste("Boxplot de", col), ylab=col, range = 3)
+  }
+}
+
 boxplot(datos$ph, main="Boxplot de ph", ylab="ph")
 
 # Boxplots de las variables independientes
@@ -87,24 +102,60 @@ for (col in colnames(datos)) {
   }
 }
 
-# Elimimar outliers influyentes
+# Eliminar outliers influyentes y algunos no influyentes (los más extremos)
+# PH
 boxplot.stats(datos$ph, coef = 3)
-
-datos <- datos[!(datos$ph %in% boxplot.stats(datos$ph)$out), ]
-
-# Ahora, datos contiene el conjunto de datos sin los outliers en la variable "ph"
-
+datos$ph <- as.numeric(trimws(datos$ph))
+datos <- datos[datos$ph != 14, ]
+boxplot.stats(datos$ph, coef = 2)
+datos <- datos[round(datos$ph, 7) != round(13.3498886, 7), ]
+datos <- datos[round(datos$ph, 7) != round(0.2274991, 7), ]
+datos <- datos[round(datos$ph, 7) != round(0.9899122, 7), ]
+# Hardness
 boxplot.stats(datos$Hardness, coef = 3)
+boxplot.stats(datos$Hardness, coef = 2)
+datos <- datos[round(datos$Hardness, 5) != round(317.33812, 5), ]
+datos <- datos[round(datos$Hardness, 5) != round(306.62748, 5), ]
+datos <- datos[round(datos$Hardness, 5) != round(300.29248, 5), ]
+datos <- datos[round(datos$Hardness, 5) != round(73.49223, 5), ]
+datos <- datos[round(datos$Hardness, 5) != round(77.45959, 5), ]
+datos <- datos[round(datos$Hardness, 5) != round(81.71090, 5), ]
+# Solids
 boxplot.stats(datos$Solids, coef = 3)
+boxplot.stats(datos$Solids, coef = 2)
+datos <- datos[round(datos$Solids, 2) != round(56488.67, 2), ]
+datos <- datos[round(datos$Solids, 2) != round(56351.40, 2), ]
+# Chloramines
 boxplot.stats(datos$Chloramines, coef = 3)
+boxplot.stats(datos$Chloramines, coef = 2)
+datos <- datos[round(datos$Chloramines, 6) != round(1.390871, 6), ]
+datos <- datos[round(datos$Chloramines, 6) != round(1.920271, 6), ]
+datos <- datos[round(datos$Chloramines, 6) != round(13.127000, 6), ]
+datos <- datos[round(datos$Chloramines, 6) != round(13.043806, 6), ]
+# Sulfate
 boxplot.stats(datos$Sulfate, coef = 3)
-
-datos <- datos[!(datos$Sulfate %in% boxplot.stats(datos$Sulfate)$out), ]
-# Ahora, datos contiene el conjunto de datos sin los outliers en la variable "Sulfate"
-
+datos$Sulfate <- as.numeric(trimws(datos$Sulfate))
+datos <- datos[datos$Sulfate != 129, ]
+boxplot.stats(datos$Sulfate, coef = 2)
+datos <- datos[round(datos$Sulfate, 4) != round(180.2067, 4), ]
+datos <- datos[round(datos$Sulfate, 4) != round(481.0306, 4), ]
+datos <- datos[round(datos$Sulfate, 4) != round(476.5397, 4), ]
+datos <- datos[round(datos$Sulfate, 4) != round(475.7375, 4), ]
+# Conductivity
 boxplot.stats(datos$Conductivity, coef = 3)
+boxplot.stats(datos$Conductivity, coef = 2)
+datos <- datos[round(datos$Conductivity, 4) != round(753.3426, 4), ]
+# Organic carbon
 boxplot.stats(datos$Organic_carbon, coef = 3)
+boxplot.stats(datos$Organic_carbon, coef = 2)
+datos <- datos[round(datos$Organic_carbon, 4) != round(27.00671, 5), ]
+datos <- datos[round(datos$Organic_carbon, 4) != round(2.20000, 5), ]
+# Trihalomethanes
 boxplot.stats(datos$Trihalomethanes, coef = 3)
+boxplot.stats(datos$Trihalomethanes, coef = 2)
+datos <- datos[round(datos$Trihalomethanes, 6) != round(124.000000, 6), ]
+datos <- datos[round(datos$Trihalomethanes, 6) != round(8.577013, 6), ]
+# Turbidity
 boxplot.stats(datos$Turbidity, coef = 3)
 
 # Boxplot de la variable dependiente "ph" después de eliminar outliers
@@ -114,6 +165,14 @@ boxplot(datos$ph, main="Boxplot de ph (sin outliers)", ylab="ph", range = 3)
 for (col in colnames(datos)) {
   if (col != "ph") {
     boxplot(datos[, col], main=paste("Boxplot de", col, "(sin outliers)"), ylab=col, range = 3)
+  }
+}
+boxplot(datos$ph, main="Boxplot de ph", ylab="ph")
+
+# Boxplots de las variables independientes
+for (col in colnames(datos)) {
+  if (col != "ph") {
+    boxplot(datos[, col], main=paste("Boxplot de", col), ylab=col)
   }
 }
 
@@ -128,6 +187,8 @@ cor(x=datos, method="spearman")
 corrplot(corr = cor(x = datos, method = "spearman"), method = "number",
          tl.cex = 1,number.cex = 1, cl.pos = "n",
          main="Coeficiente de Spearman")
+
+describe(datos)
 
 # Ajustar modelo de regresión lineal
 modelo <- lm(ph ~ ., data=datos)
@@ -144,19 +205,13 @@ par(mfrow = c(1, 1))
 
 # Separamos en Train y Test
 set.seed(1)
-train = sample(c(TRUE,FALSE),size = nrow(datos), replace = TRUE, prob = c(0.8, 0.2))
+train = sample(c(TRUE,FALSE),size = nrow(datos), replace = TRUE, prob = c(0.7, 0.3))
 datos.train = datos[train,]
 datos.test = datos[!train,]
 
 modelo <- lm(ph ~ .,data=datos.train)
 summary(modelo) # Mostramos el modelo ajustado
 
-## Gráfico de residuos contra valores ajustados
-plot(modelo, which = c(1, 2))
-par(mfrow = c(1, 1))
-
-# Gráfico QQ
-qqPlot(modelo, main = "Gráfico QQ")
 
 ## VALIDACIÓN CRUZADA k-folds
 k <- 5 # Número de grupos igual a n
@@ -191,12 +246,157 @@ durbinWatsonTest(model.cv)
 # Por ultimo, evaluamos los supuestos de normalidad, independencia y homocedasticidad.
 summary(model.cv)
 confint(model.cv) # Mostramos los intervalos de confianza de los coeficientes
-residuos=model.cv$residuals
+# Obtén los residuos del modelo de regresión
+residuos <- model.cv$residuals
+
+# Visualización inicial de los residuos
 plot(residuos)
 hist(residuos)
 boxplot(residuos)
-boxplot.stats(residuos, coef = 3)
 
+# Quitar observaciones influyentes
+#obtenemos los ´ındices y los valores con leverage alto
+leverage=hatvalues(model.cv) #calculamos el valor de leverage
+plot(leverage,type="h")
+(leverage.alto=c(which(leverage>2)))
+leverage[leverage.alto]
+rest=rstudent(model.cv) #calculamos los residuos estudentizados
+(outliers=c(which(rest>3),which(rest<(-3))))
+rest[outliers] #obtenemos el valor del residuo estudentizado
+
+datos2=datos.train[-outliers[6],]
+rownames(datos2)=1:nrow(datos2) #renombramos etiquetas de filas
+model.cv <- lm(ph ~ Hardness + Solids, data=datos2)
+summary(modelo) #mostramos el modelo ajustado
+
+leverage=hatvalues(model.cv) #calculamos el valor de leverage
+plot(leverage,type="h")
+(leverage.alto=c(which(leverage>2)))
+leverage[leverage.alto]
+rest=rstudent(model.cv) #calculamos los residuos estudentizados
+(outliers=c(which(rest>3),which(rest<(-3))))
+rest[outliers] #obtenemos el valor del residuo estudentizado
+
+datos3=datos2[-outliers[5],]
+rownames(datos3)=1:nrow(datos3) #renombramos etiquetas de filas
+model.cv <- lm(ph ~ Hardness + Solids, data=datos3)
+summary(modelo) #mostramos el modelo ajustado
+
+leverage=hatvalues(model.cv) #calculamos el valor de leverage
+plot(leverage,type="h")
+(leverage.alto=c(which(leverage>2)))
+leverage[leverage.alto]
+rest=rstudent(model.cv) #calculamos los residuos estudentizados
+(outliers=c(which(rest>3),which(rest<(-3))))
+rest[outliers] #obtenemos el valor del residuo estudentizado
+
+datos4=datos3[-outliers[2],]
+rownames(datos4)=1:nrow(datos4) #renombramos etiquetas de filas
+model.cv <- lm(ph ~ Hardness + Solids, data=datos4)
+summary(modelo) #mostramos el modelo ajustado
+
+leverage=hatvalues(model.cv) #calculamos el valor de leverage
+plot(leverage,type="h")
+(leverage.alto=c(which(leverage>2)))
+leverage[leverage.alto]
+rest=rstudent(model.cv) #calculamos los residuos estudentizados
+(outliers=c(which(rest>3),which(rest<(-3))))
+rest[outliers] #obtenemos el valor del residuo estudentizado
+
+datos5=datos4[-outliers[2],]
+rownames(datos5)=1:nrow(datos5) #renombramos etiquetas de filas
+model.cv <- lm(ph ~ Hardness + Solids, data=datos5)
+summary(modelo) #mostramos el modelo ajustado
+
+leverage=hatvalues(model.cv) #calculamos el valor de leverage
+plot(leverage,type="h")
+(leverage.alto=c(which(leverage>2)))
+leverage[leverage.alto]
+rest=rstudent(model.cv) #calculamos los residuos estudentizados
+(outliers=c(which(rest>3),which(rest<(-3))))
+rest[outliers] #obtenemos el valor del residuo estudentizado
+
+datos6=datos5[-outliers[5],]
+rownames(datos6)=1:nrow(datos6) #renombramos etiquetas de filas
+model.cv <- lm(ph ~ Hardness + Solids, data=datos6)
+summary(modelo) #mostramos el modelo ajustado
+
+leverage=hatvalues(model.cv) #calculamos el valor de leverage
+plot(leverage,type="h")
+(leverage.alto=c(which(leverage>2)))
+leverage[leverage.alto]
+rest=rstudent(model.cv) #calculamos los residuos estudentizados
+(outliers=c(which(rest>3),which(rest<(-3))))
+rest[outliers] #obtenemos el valor del residuo estudentizado
+
+datos7=datos6[-outliers[1],]
+rownames(datos7)=1:nrow(datos7) #renombramos etiquetas de filas
+model.cv <- lm(ph ~ Hardness + Solids, data=datos7)
+summary(modelo) #mostramos el modelo ajustado
+
+leverage=hatvalues(model.cv) #calculamos el valor de leverage
+plot(leverage,type="h")
+(leverage.alto=c(which(leverage>2)))
+leverage[leverage.alto]
+rest=rstudent(model.cv) #calculamos los residuos estudentizados
+(outliers=c(which(rest>3),which(rest<(-3))))
+rest[outliers] #obtenemos el valor del residuo estudentizado
+
+datos8=datos7[-outliers[1],]
+rownames(datos8)=1:nrow(datos8) #renombramos etiquetas de filas
+model.cv <- lm(ph ~ Hardness + Solids, data=datos8)
+summary(modelo) #mostramos el modelo ajustado
+
+leverage=hatvalues(model.cv) #calculamos el valor de leverage
+plot(leverage,type="h")
+(leverage.alto=c(which(leverage>2)))
+leverage[leverage.alto]
+rest=rstudent(model.cv) #calculamos los residuos estudentizados
+(outliers=c(which(rest>3),which(rest<(-3))))
+rest[outliers] #obtenemos el valor del residuo estudentizado
+
+datos9=datos8[-outliers[3],]
+rownames(datos9)=1:nrow(datos9) #renombramos etiquetas de filas
+model.cv <- lm(ph ~ Hardness + Solids, data=datos9)
+summary(modelo) #mostramos el modelo ajustado
+
+leverage=hatvalues(model.cv) #calculamos el valor de leverage
+plot(leverage,type="h")
+(leverage.alto=c(which(leverage>2)))
+leverage[leverage.alto]
+rest=rstudent(model.cv) #calculamos los residuos estudentizados
+(outliers=c(which(rest>3),which(rest<(-3))))
+rest[outliers] #obtenemos el valor del residuo estudentizado
+
+datos10=datos9[-outliers[2],]
+rownames(datos10)=1:nrow(datos10) #renombramos etiquetas de filas
+model.cv <- lm(ph ~ Hardness + Solids, data=datos10)
+summary(modelo) #mostramos el modelo ajustado
+
+leverage=hatvalues(model.cv) #calculamos el valor de leverage
+plot(leverage,type="h")
+(leverage.alto=c(which(leverage>2)))
+leverage[leverage.alto]
+rest=rstudent(model.cv) #calculamos los residuos estudentizados
+(outliers=c(which(rest>3),which(rest<(-3))))
+rest[outliers] #obtenemos el valor del residuo estudentizado
+
+datos11=datos10[-outliers[1],]
+rownames(datos11)=1:nrow(datos11) #renombramos etiquetas de filas
+model.cv <- lm(ph ~ Hardness + Solids, data=datos11)
+summary(modelo) #mostramos el modelo ajustado
+
+leverage=hatvalues(model.cv) #calculamos el valor de leverage
+plot(leverage,type="h")
+(leverage.alto=c(which(leverage>2)))
+leverage[leverage.alto]
+rest=rstudent(model.cv) #calculamos los residuos estudentizados
+(outliers=c(which(rest>3),which(rest<(-3))))
+rest[outliers] #obtenemos el valor del residuo estudentizado
+
+plot(model.cv)
+
+residuos <- model.cv$residuals
 
 #Estudiamos la normalidad
 lillie.test(residuos)
@@ -216,6 +416,18 @@ ECM
 RMSE=(sqrt(ECM))
 RMSE
 
+# CP de Mallows
+ols_mallows_cp(model.cv, modelo)
+
+# Criterio de informacion de Akaike
+
+modelos <- list(model.cv)
+mod.names <- c("model.cv")
+aictab(cand.set = modelos, modnames = mod.names)
+
+# BIC
+BIC(model.cv)
+
 
 # MÉTODO RIDGE
 
@@ -223,6 +435,7 @@ x<-model.matrix(ph~.,datos.train)[,-1]
 y<-datos.train$ph
 grid<-10^seq(10,-2,length=100)
 ridge.mod<-glmnet(x,y,alpha=0,lambda=grid)
+
 
 x.train<-model.matrix(ph~.,datos.train)[,-1]
 y.train<-datos.train$ph
@@ -242,7 +455,31 @@ RMSE=(sqrt(ECM))
 RMSE
 
 out<-glmnet(x,y,alpha=0)
-predict(out,type="coefficients",s=bestlam)
+ridge.coef = predict(out,type="coefficients",s=bestlam)
+ridge.coef
+
+
+# Calcular el Cp de Mallows
+n <- length(y.test)
+d <- sum(ridge.coef != 0)  # Número de predictores en el modelo
+RSS <- sum((y.test - ridge.pred)^2)
+sigma_hat_sq <- RSS / (n - d)  # Estimación de la varianza del error
+
+ridge_cpm <- (1/n) * (RSS + 2 * d * sigma_hat_sq)
+ridge_cpm
+
+# R2 ajustado
+r2 = 1 - (RSS / sum((y.test - mean(y.test)) ^ 2))
+r2_ajustado = 1 - (1 - r2) * ((n - 1) / (n - d - 1))
+r2_ajustado
+
+# Calcular el AIC
+ridge_aic <- (1/n * sigma_hat_sq) * (RSS + 2 * d * sigma_hat_sq)
+ridge_aic
+
+# Calcular BIC
+ridge_bic = (1/n) * (RSS + log(n) * d * sigma_hat_sq)
+ridge_bic
 
 # Gráfico de coeficientes Ridge
 plot(ridge.mod, xvar="lambda", label=TRUE)
@@ -257,6 +494,7 @@ set.seed(1)
 cv.out<-cv.glmnet(x.train,y.train,alpha=1)
 plot(cv.out)
 bestlam<-cv.out$lambda.min
+bestlam
 lasso.pred<-predict(lasso.mod,s=bestlam,newx=x.test)
 mean((lasso.pred-y.test)^2)
 sqrt(mean((lasso.pred-y.test)^2))
@@ -265,6 +503,27 @@ out<-glmnet(x,y,alpha=1,lambda=grid)
 lasso.coef<-predict(out,type="coefficients",s=bestlam)
 lasso.coef
 lasso.coef[lasso.coef!=0]
+
+# Calcular el Cp de Mallows
+d <- sum(lasso.coef != 0)  # Número de predictores en el modelo
+RSS <- sum((y.test - lasso.pred)^2)
+sigma_hat_sq <- RSS / (n - d)  # Estimación de la varianza del error
+
+lasso_cpm <- (1/n) * (RSS + 2 * d * sigma_hat_sq)
+lasso_cpm
+
+# R2 ajustado
+r2 = 1 - (RSS / sum((y.test - mean(y.test)) ^ 2))
+r2_ajustado = 1 - (1 - r2) * ((n - 1) / (n - d - 1))
+r2_ajustado
+
+# Calcular el AIC
+lasso_aic <- (1/n * sigma_hat_sq) * (RSS + 2 * d * sigma_hat_sq)
+lasso_aic
+
+# Calcular BIC
+lasso_bic = (1/n) * (RSS + log(n) * d * sigma_hat_sq)
+lasso_bic
 
 # Gráfico de coeficientes Lasso
 plot(lasso.mod, xvar="lambda", label=TRUE)
@@ -304,12 +563,34 @@ plot(results$alpha, results$mse)
 pos.min=which.min(results$mse)
 (minimo=results[pos.min,])
 
-# Como podemos ver, el valor de α que produce el mejor ajuste (minimiza el ECM) es 0.85
+# Como podemos ver, el valor de α que produce el mejor ajuste (minimiza el ECM) es 0.25
 # y el modelo resultante contiene los siguientes predictores:
 out<-glmnet(x,y,alpha=minimo$alpha,lambda=minimo$lambda)
 elasnet.coef<-predict(out,type="coefficients",s=bestlam)
 elasnet.coef
 elasnet.coef[elasnet.coef!=0]
+
+# Calcular el Cp de Mallows
+d <- sum(elasnet.coef != 0)  # Número de predictores en el modelo
+elasnet.pred <- predict(out, s = minimo$lambda, newx = x.test)
+RSS <- sum((y.test - elasnet.pred)^2)
+sigma_hat_sq <- RSS / (n - d)  # Estimación de la varianza del error
+
+elasnet_cpm <- (1/n) * (RSS + 2 * d * sigma_hat_sq)
+elasnet_cpm
+
+# R2 ajustado
+r2 = 1 - (RSS / sum((y.test - mean(y.test)) ^ 2))
+r2_ajustado = 1 - (1 - r2) * ((n - 1) / (n - d - 1))
+r2_ajustado
+
+# Calcular el AIC
+elasnet_aic <- (1/n * sigma_hat_sq) * (RSS + 2 * d * sigma_hat_sq)
+elasnet_aic
+
+# Calcular BIC
+elasnet_bic = (1/n) * (RSS + log(n) * d * sigma_hat_sq)
+elasnet_bic
 
 
 
@@ -322,10 +603,32 @@ pcr.fit<-pcr(ph~.,data=datos.train,scale=TRUE,validation="CV")
 validationplot(pcr.fit,val.type="MSEP")
 MSEP(pcr.fit)
 
-# Ahora encontramos que el error de validacion cruzada mas bajo ocurre cuando se usan M = 4 componentes. Calculamos el ECM en el conjunto de prueba de la siguiente manera.
-pcr.pred<-predict(pcr.fit,x.test,ncomp=4)
+# Ahora encontramos que el error de validacion cruzada mas bajo ocurre cuando se usan M = 2 componentes. Calculamos el ECM en el conjunto de prueba de la siguiente manera.
+pcr.pred<-predict(pcr.fit,x.test,ncomp=2)
 mean((pcr.pred-y.test)^2)
 sqrt(mean((pcr.pred-y.test)^2))
+
+# Calcular el Cp de Mallows
+n <- length(y.test)
+d <- 2 # ncomp
+RSS <- sum((y.test - pcr.pred)^2)
+sigma_hat_sq <- RSS / (n - 2)  # Estimación de la varianza del error
+
+pcr_cpm <- (1/n) * (RSS + 2 * d * sigma_hat_sq)
+pcr_cpm
+
+# R2 ajustado
+r2 = 1 - (RSS / sum((y.test - mean(y.test)) ^ 2))
+r2_ajustado = 1 - (1 - r2) * ((n - 1) / (n - d - 1))
+r2_ajustado
+
+# Calcular el AIC
+pcr_aic <- (1/n * sigma_hat_sq) * (RSS + 2 * d * sigma_hat_sq)
+pcr_aic
+
+# Calcular BIC
+pcr_bic = (1/n) * (RSS + log(n) * d * sigma_hat_sq)
+pcr_bic
 
 
 # PLS (el enfoque PLS intenta encontrar direcciones que ayuden a explicar tanto la respuesta como los predictores)
@@ -345,9 +648,30 @@ pls.pred<-predict(pls.fit,x.test,ncomp=1)
 mean((pls.pred-y.test)^2)
 sqrt(mean((pls.pred-y.test)^2))
 
+# Calcular el Cp de Mallows
+n <- length(y.test)
+d <- 1 # ncomp
+RSS <- sum((y.test - pls.pred)^2)
+sigma_hat_sq <- RSS / (n - 2)  # Estimación de la varianza del error
+
+pls_cpm <- (1/n) * (RSS + 2 * d * sigma_hat_sq)
+pls_cpm
+
+# R2 ajustado
+r2 = 1 - (RSS / sum((y.test - mean(y.test)) ^ 2))
+r2_ajustado = 1 - (1 - r2) * ((n - 1) / (n - d - 1))
+r2_ajustado
+
+# Calcular el AIC
+pls_aic <- (1/n * sigma_hat_sq) * (RSS + 2 * d * sigma_hat_sq)
+pls_aic
+
+# Calcular BIC
+pcr_bic = (1/n) * (RSS + log(n) * d * sigma_hat_sq)
+pcr_bic
+
 
 # REGRESIÓN LOGÍSTICA
-
 names(datos_logistica) #obtenemos los nombres de las caracterısticas
 dim(datos_logistica) #obtenemos la dimension de la matriz
 summary(datos_logistica)
@@ -355,6 +679,15 @@ summary(datos_logistica)
 par(mfrow = c(3, 3))
 
 # Boxplot de la variable dependiente "ph"
+boxplot(datos_logistica$ph, main="Boxplot de ph", ylab="ph", range = 3)
+
+# Boxplots de las variables independientes
+for (col in colnames(datos_logistica)) {
+  if (col != "ph") {
+    boxplot(datos_logistica[, col], main=paste("Boxplot de", col), ylab=col, range = 3)
+  }
+}
+
 boxplot(datos_logistica$ph, main="Boxplot de ph", ylab="ph")
 
 # Boxplots de las variables independientes
@@ -364,24 +697,60 @@ for (col in colnames(datos_logistica)) {
   }
 }
 
-# Elimimar outliers influyentes
+# Eliminar outliers influyentes y algunos no influyentes
+# PH
 boxplot.stats(datos_logistica$ph, coef = 3)
-
-datos_logistica <- datos_logistica[!(datos_logistica$ph %in% boxplot.stats(datos_logistica$ph)$out), ]
-
-# Ahora, datos contiene el conjunto de datos sin los outliers en la variable "ph"
-
+datos_logistica$ph <- as.numeric(trimws(datos_logistica$ph))
+datos_logistica <- datos_logistica[datos_logistica$ph != 14, ]
+boxplot.stats(datos_logistica$ph, coef = 2)
+datos_logistica <- datos_logistica[round(datos_logistica$ph, 7) != round(13.3498886, 7), ]
+datos_logistica <- datos_logistica[round(datos_logistica$ph, 7) != round(0.2274991, 7), ]
+datos_logistica <- datos_logistica[round(datos_logistica$ph, 7) != round(0.9899122, 7), ]
+# Hardness
 boxplot.stats(datos_logistica$Hardness, coef = 3)
+boxplot.stats(datos_logistica$Hardness, coef = 2)
+datos_logistica <- datos_logistica[round(datos_logistica$Hardness, 5) != round(317.33812, 5), ]
+datos_logistica <- datos_logistica[round(datos_logistica$Hardness, 5) != round(306.62748, 5), ]
+datos_logistica <- datos_logistica[round(datos_logistica$Hardness, 5) != round(300.29248, 5), ]
+datos_logistica <- datos_logistica[round(datos_logistica$Hardness, 5) != round(73.49223, 5), ]
+datos_logistica <- datos_logistica[round(datos_logistica$Hardness, 5) != round(77.45959, 5), ]
+datos_logistica <- datos_logistica[round(datos_logistica$Hardness, 5) != round(81.71090, 5), ]
+# Solids
 boxplot.stats(datos_logistica$Solids, coef = 3)
+boxplot.stats(datos_logistica$Solids, coef = 2)
+datos_logistica <- datos_logistica[round(datos_logistica$Solids, 2) != round(56488.67, 2), ]
+datos_logistica <- datos_logistica[round(datos_logistica$Solids, 2) != round(56351.40, 2), ]
+# Chloramines
 boxplot.stats(datos_logistica$Chloramines, coef = 3)
+boxplot.stats(datos_logistica$Chloramines, coef = 2)
+datos_logistica <- datos_logistica[round(datos_logistica$Chloramines, 6) != round(1.390871, 6), ]
+datos_logistica <- datos_logistica[round(datos_logistica$Chloramines, 6) != round(1.920271, 6), ]
+datos_logistica <- datos_logistica[round(datos_logistica$Chloramines, 6) != round(13.127000, 6), ]
+datos_logistica <- datos_logistica[round(datos_logistica$Chloramines, 6) != round(13.043806, 6), ]
+# Sulfate
 boxplot.stats(datos_logistica$Sulfate, coef = 3)
-
-datos_logistica <- datos_logistica[!(datos_logistica$Sulfate %in% boxplot.stats(datos_logistica$Sulfate)$out), ]
-# Ahora, datos contiene el conjunto de datos sin los outliers en la variable "Sulfate"
-
+datos_logistica$Sulfate <- as.numeric(trimws(datos_logistica$Sulfate))
+datos_logistica <- datos_logistica[datos_logistica$Sulfate != 129, ]
+boxplot.stats(datos_logistica$Sulfate, coef = 2)
+datos_logistica <- datos_logistica[round(datos_logistica$Sulfate, 4) != round(180.2067, 4), ]
+datos_logistica <- datos_logistica[round(datos_logistica$Sulfate, 4) != round(481.0306, 4), ]
+datos_logistica <- datos_logistica[round(datos_logistica$Sulfate, 4) != round(476.5397, 4), ]
+datos_logistica <- datos_logistica[round(datos_logistica$Sulfate, 4) != round(475.7375, 4), ]
+# Conductivity
 boxplot.stats(datos_logistica$Conductivity, coef = 3)
+boxplot.stats(datos_logistica$Conductivity, coef = 2)
+datos_logistica <- datos_logistica[round(datos_logistica$Conductivity, 4) != round(753.3426, 4), ]
+# Organic carbon
 boxplot.stats(datos_logistica$Organic_carbon, coef = 3)
+boxplot.stats(datos_logistica$Organic_carbon, coef = 2)
+datos_logistica <- datos_logistica[round(datos_logistica$Organic_carbon, 4) != round(27.00671, 5), ]
+datos_logistica <- datos_logistica[round(datos_logistica$Organic_carbon, 4) != round(2.20000, 5), ]
+# Trihalomethanes
 boxplot.stats(datos_logistica$Trihalomethanes, coef = 3)
+boxplot.stats(datos_logistica$Trihalomethanes, coef = 2)
+datos_logistica <- datos_logistica[round(datos_logistica$Trihalomethanes, 6) != round(124.000000, 6), ]
+datos_logistica <- datos_logistica[round(datos_logistica$Trihalomethanes, 6) != round(8.577013, 6), ]
+# Turbidity
 boxplot.stats(datos_logistica$Turbidity, coef = 3)
 
 # Boxplot de la variable dependiente "ph" después de eliminar outliers
@@ -393,6 +762,14 @@ for (col in colnames(datos_logistica)) {
     boxplot(datos_logistica[, col], main=paste("Boxplot de", col, "(sin outliers)"), ylab=col, range = 3)
   }
 }
+boxplot(datos_logistica$ph, main="Boxplot de ph", ylab="ph")
+
+# Boxplots de las variables independientes
+for (col in colnames(datos_logistica)) {
+  if (col != "ph") {
+    boxplot(datos_logistica[, col], main=paste("Boxplot de", col), ylab=col)
+  }
+}
 
 dim(datos_logistica)
 par(mfrow = c(1, 1))
@@ -400,7 +777,8 @@ par(mfrow = c(1, 1))
 umbral_ph <- 7
 
 # Crear la variable dicotómica (más de 7 de ph es 1 lo que significa que el ph es alcalino, y al contrario que es ácido)
-datos_logistica$ph_categorico <- ifelse(datos_logistica$ph > umbral_ph, 1, 0)
+datos_logistica$ph_categorico <- ifelse(datos_logistica$ph >= umbral_ph, 1, 0)
+
 
 modelo_logistico <- glm(ph_categorico ~ Hardness + Solids + Chloramines + Sulfate + Conductivity + Organic_carbon + Trihalomethanes + Turbidity, 
                         data = datos_logistica, 
@@ -416,12 +794,13 @@ datos_logistica$ph_categorico <- as.factor(datos_logistica$ph_categorico)
 
 # Separa los datos en conjuntos de entrenamiento y prueba
 set.seed(1)
-train = sample(c(TRUE,FALSE),size = nrow(datos_logistica), replace = TRUE, prob = c(0.7, 0.3))
+train = sample(c(TRUE,FALSE),size = nrow(datos_logistica), replace = TRUE, prob = c(0.71, 0.29))
 datos_logistica.train <- datos_logistica[train, ]
 datos_logistica.test <- datos_logistica[-train, ]
 
 modelo_logistica <- glm(ph_categorico ~ Hardness + Solids + Chloramines + Sulfate + Conductivity + Organic_carbon + Trihalomethanes + Turbidity, data=datos_logistica.train, family=binomial)
 summary(modelo_logistica) # Mostramos el modelo ajustado
+
 
 # Ajuste del modelo de regresión logística con validación cruzada LOOCV
 model <- train(ph_categorico ~ Hardness,
@@ -437,7 +816,6 @@ model
 
 # Realizar predicciones en los datos de prueba
 glm.pred <- predict(model, datos_logistica.test)
-
 
 # Calcular la matriz de confusión
 confusionMatrix(glm.pred, datos_logistica.test$ph_categorico)
