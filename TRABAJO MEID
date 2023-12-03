@@ -93,12 +93,13 @@ for (col in colnames(datos)) {
   }
 }
 
-boxplot(datos$ph, main="Boxplot de ph", ylab="ph")
+# Boxplot de la variable dependiente "ph"
+boxplot(datos$ph, main="Boxplot de ph", ylab="ph", range = 2)
 
 # Boxplots de las variables independientes
 for (col in colnames(datos)) {
   if (col != "ph") {
-    boxplot(datos[, col], main=paste("Boxplot de", col), ylab=col)
+    boxplot(datos[, col], main=paste("Boxplot de", col), ylab=col, range = 2)
   }
 }
 
@@ -167,12 +168,14 @@ for (col in colnames(datos)) {
     boxplot(datos[, col], main=paste("Boxplot de", col, "(sin outliers)"), ylab=col, range = 3)
   }
 }
-boxplot(datos$ph, main="Boxplot de ph", ylab="ph")
+
+# Boxplot de la variable dependiente "ph" después de eliminar outliers
+boxplot(datos$ph, main="Boxplot de ph", ylab="ph", range = 2)
 
 # Boxplots de las variables independientes
 for (col in colnames(datos)) {
   if (col != "ph") {
-    boxplot(datos[, col], main=paste("Boxplot de", col), ylab=col)
+    boxplot(datos[, col], main=paste("Boxplot de", col), ylab=col, range = 2)
   }
 }
 
@@ -267,7 +270,7 @@ rest[outliers] #obtenemos el valor del residuo estudentizado
 datos2=datos.train[-outliers[6],]
 rownames(datos2)=1:nrow(datos2) #renombramos etiquetas de filas
 model.cv <- lm(ph ~ Hardness + Solids, data=datos2)
-summary(modelo) #mostramos el modelo ajustado
+summary(model.cv) #mostramos el modelo ajustado
 
 leverage=hatvalues(model.cv) #calculamos el valor de leverage
 plot(leverage,type="h")
@@ -280,7 +283,7 @@ rest[outliers] #obtenemos el valor del residuo estudentizado
 datos3=datos2[-outliers[5],]
 rownames(datos3)=1:nrow(datos3) #renombramos etiquetas de filas
 model.cv <- lm(ph ~ Hardness + Solids, data=datos3)
-summary(modelo) #mostramos el modelo ajustado
+summary(model.cv) #mostramos el modelo ajustado
 
 leverage=hatvalues(model.cv) #calculamos el valor de leverage
 plot(leverage,type="h")
@@ -293,7 +296,7 @@ rest[outliers] #obtenemos el valor del residuo estudentizado
 datos4=datos3[-outliers[2],]
 rownames(datos4)=1:nrow(datos4) #renombramos etiquetas de filas
 model.cv <- lm(ph ~ Hardness + Solids, data=datos4)
-summary(modelo) #mostramos el modelo ajustado
+summary(model.cv) #mostramos el modelo ajustado
 
 leverage=hatvalues(model.cv) #calculamos el valor de leverage
 plot(leverage,type="h")
@@ -306,7 +309,7 @@ rest[outliers] #obtenemos el valor del residuo estudentizado
 datos5=datos4[-outliers[2],]
 rownames(datos5)=1:nrow(datos5) #renombramos etiquetas de filas
 model.cv <- lm(ph ~ Hardness + Solids, data=datos5)
-summary(modelo) #mostramos el modelo ajustado
+summary(model.cv) #mostramos el modelo ajustado
 
 leverage=hatvalues(model.cv) #calculamos el valor de leverage
 plot(leverage,type="h")
@@ -319,7 +322,7 @@ rest[outliers] #obtenemos el valor del residuo estudentizado
 datos6=datos5[-outliers[5],]
 rownames(datos6)=1:nrow(datos6) #renombramos etiquetas de filas
 model.cv <- lm(ph ~ Hardness + Solids, data=datos6)
-summary(modelo) #mostramos el modelo ajustado
+summary(model.cv) #mostramos el modelo ajustado
 
 leverage=hatvalues(model.cv) #calculamos el valor de leverage
 plot(leverage,type="h")
@@ -332,7 +335,7 @@ rest[outliers] #obtenemos el valor del residuo estudentizado
 datos7=datos6[-outliers[1],]
 rownames(datos7)=1:nrow(datos7) #renombramos etiquetas de filas
 model.cv <- lm(ph ~ Hardness + Solids, data=datos7)
-summary(modelo) #mostramos el modelo ajustado
+summary(model.cv) #mostramos el modelo ajustado
 
 leverage=hatvalues(model.cv) #calculamos el valor de leverage
 plot(leverage,type="h")
@@ -345,7 +348,7 @@ rest[outliers] #obtenemos el valor del residuo estudentizado
 datos8=datos7[-outliers[1],]
 rownames(datos8)=1:nrow(datos8) #renombramos etiquetas de filas
 model.cv <- lm(ph ~ Hardness + Solids, data=datos8)
-summary(modelo) #mostramos el modelo ajustado
+summary(model.cv) #mostramos el modelo ajustado
 
 leverage=hatvalues(model.cv) #calculamos el valor de leverage
 plot(leverage,type="h")
@@ -358,7 +361,7 @@ rest[outliers] #obtenemos el valor del residuo estudentizado
 datos9=datos8[-outliers[3],]
 rownames(datos9)=1:nrow(datos9) #renombramos etiquetas de filas
 model.cv <- lm(ph ~ Hardness + Solids, data=datos9)
-summary(modelo) #mostramos el modelo ajustado
+summary(model.cv) #mostramos el modelo ajustado
 
 leverage=hatvalues(model.cv) #calculamos el valor de leverage
 plot(leverage,type="h")
@@ -371,7 +374,7 @@ rest[outliers] #obtenemos el valor del residuo estudentizado
 datos10=datos9[-outliers[2],]
 rownames(datos10)=1:nrow(datos10) #renombramos etiquetas de filas
 model.cv <- lm(ph ~ Hardness + Solids, data=datos10)
-summary(modelo) #mostramos el modelo ajustado
+summary(model.cv) #mostramos el modelo ajustado
 
 leverage=hatvalues(model.cv) #calculamos el valor de leverage
 plot(leverage,type="h")
@@ -384,7 +387,7 @@ rest[outliers] #obtenemos el valor del residuo estudentizado
 datos11=datos10[-outliers[1],]
 rownames(datos11)=1:nrow(datos11) #renombramos etiquetas de filas
 model.cv <- lm(ph ~ Hardness + Solids, data=datos11)
-summary(modelo) #mostramos el modelo ajustado
+summary(model.cv) #mostramos el modelo ajustado
 
 leverage=hatvalues(model.cv) #calculamos el valor de leverage
 plot(leverage,type="h")
@@ -393,6 +396,8 @@ leverage[leverage.alto]
 rest=rstudent(model.cv) #calculamos los residuos estudentizados
 (outliers=c(which(rest>3),which(rest<(-3))))
 rest[outliers] #obtenemos el valor del residuo estudentizado
+
+modelo <- lm(ph ~ .,data=datos11)
 
 plot(model.cv)
 
@@ -420,7 +425,6 @@ RMSE
 ols_mallows_cp(model.cv, modelo)
 
 # Criterio de informacion de Akaike
-
 modelos <- list(model.cv)
 mod.names <- c("model.cv")
 aictab(cand.set = modelos, modnames = mod.names)
@@ -449,6 +453,7 @@ plot(cv.out)
 (bestlam<-cv.out$lambda.min)
 
 ridge.pred<-predict(ridge.mod,s=bestlam,newx=x.test)
+ridge.pred1<-predict(ridge.mod,s=bestlam,newx=x.train)
 ECM = mean((ridge.pred-y.test)^2)
 ECM
 RMSE=(sqrt(ECM))
@@ -458,18 +463,17 @@ out<-glmnet(x,y,alpha=0)
 ridge.coef = predict(out,type="coefficients",s=bestlam)
 ridge.coef
 
-
 # Calcular el Cp de Mallows
-n <- length(y.test)
+n <- length(y.train)
 d <- sum(ridge.coef != 0)  # Número de predictores en el modelo
-RSS <- sum((y.test - ridge.pred)^2)
+RSS <- sum((y.train - ridge.pred1)^2)
 sigma_hat_sq <- RSS / (n - d)  # Estimación de la varianza del error
 
 ridge_cpm <- (1/n) * (RSS + 2 * d * sigma_hat_sq)
 ridge_cpm
 
 # R2 ajustado
-r2 = 1 - (RSS / sum((y.test - mean(y.test)) ^ 2))
+r2 = 1 - (RSS / sum((y.train - mean(y.train)) ^ 2))
 r2_ajustado = 1 - (1 - r2) * ((n - 1) / (n - d - 1))
 r2_ajustado
 
@@ -496,6 +500,7 @@ plot(cv.out)
 bestlam<-cv.out$lambda.min
 bestlam
 lasso.pred<-predict(lasso.mod,s=bestlam,newx=x.test)
+lasso.pred1<-predict(lasso.mod,s=bestlam,newx=x.train)
 mean((lasso.pred-y.test)^2)
 sqrt(mean((lasso.pred-y.test)^2))
 
@@ -505,15 +510,16 @@ lasso.coef
 lasso.coef[lasso.coef!=0]
 
 # Calcular el Cp de Mallows
+n <- length(y.train)
 d <- sum(lasso.coef != 0)  # Número de predictores en el modelo
-RSS <- sum((y.test - lasso.pred)^2)
+RSS <- sum((y.train - lasso.pred1)^2)
 sigma_hat_sq <- RSS / (n - d)  # Estimación de la varianza del error
 
 lasso_cpm <- (1/n) * (RSS + 2 * d * sigma_hat_sq)
 lasso_cpm
 
 # R2 ajustado
-r2 = 1 - (RSS / sum((y.test - mean(y.test)) ^ 2))
+r2 = 1 - (RSS / sum((y.train - mean(y.train)) ^ 2))
 r2_ajustado = 1 - (1 - r2) * ((n - 1) / (n - d - 1))
 r2_ajustado
 
@@ -572,15 +578,15 @@ elasnet.coef[elasnet.coef!=0]
 
 # Calcular el Cp de Mallows
 d <- sum(elasnet.coef != 0)  # Número de predictores en el modelo
-elasnet.pred <- predict(out, s = minimo$lambda, newx = x.test)
-RSS <- sum((y.test - elasnet.pred)^2)
+elasnet.pred <- predict(out, s = minimo$lambda, newx = x.train)
+RSS <- sum((y.train - elasnet.pred)^2)
 sigma_hat_sq <- RSS / (n - d)  # Estimación de la varianza del error
 
 elasnet_cpm <- (1/n) * (RSS + 2 * d * sigma_hat_sq)
 elasnet_cpm
 
 # R2 ajustado
-r2 = 1 - (RSS / sum((y.test - mean(y.test)) ^ 2))
+r2 = 1 - (RSS / sum((y.train - mean(y.train)) ^ 2))
 r2_ajustado = 1 - (1 - r2) * ((n - 1) / (n - d - 1))
 r2_ajustado
 
@@ -608,28 +614,6 @@ pcr.pred<-predict(pcr.fit,x.test,ncomp=2)
 mean((pcr.pred-y.test)^2)
 sqrt(mean((pcr.pred-y.test)^2))
 
-# Calcular el Cp de Mallows
-n <- length(y.test)
-d <- 2 # ncomp
-RSS <- sum((y.test - pcr.pred)^2)
-sigma_hat_sq <- RSS / (n - 2)  # Estimación de la varianza del error
-
-pcr_cpm <- (1/n) * (RSS + 2 * d * sigma_hat_sq)
-pcr_cpm
-
-# R2 ajustado
-r2 = 1 - (RSS / sum((y.test - mean(y.test)) ^ 2))
-r2_ajustado = 1 - (1 - r2) * ((n - 1) / (n - d - 1))
-r2_ajustado
-
-# Calcular el AIC
-pcr_aic <- (1/n * sigma_hat_sq) * (RSS + 2 * d * sigma_hat_sq)
-pcr_aic
-
-# Calcular BIC
-pcr_bic = (1/n) * (RSS + log(n) * d * sigma_hat_sq)
-pcr_bic
-
 
 # PLS (el enfoque PLS intenta encontrar direcciones que ayuden a explicar tanto la respuesta como los predictores)
 
@@ -648,27 +632,6 @@ pls.pred<-predict(pls.fit,x.test,ncomp=1)
 mean((pls.pred-y.test)^2)
 sqrt(mean((pls.pred-y.test)^2))
 
-# Calcular el Cp de Mallows
-n <- length(y.test)
-d <- 1 # ncomp
-RSS <- sum((y.test - pls.pred)^2)
-sigma_hat_sq <- RSS / (n - 2)  # Estimación de la varianza del error
-
-pls_cpm <- (1/n) * (RSS + 2 * d * sigma_hat_sq)
-pls_cpm
-
-# R2 ajustado
-r2 = 1 - (RSS / sum((y.test - mean(y.test)) ^ 2))
-r2_ajustado = 1 - (1 - r2) * ((n - 1) / (n - d - 1))
-r2_ajustado
-
-# Calcular el AIC
-pls_aic <- (1/n * sigma_hat_sq) * (RSS + 2 * d * sigma_hat_sq)
-pls_aic
-
-# Calcular BIC
-pcr_bic = (1/n) * (RSS + log(n) * d * sigma_hat_sq)
-pcr_bic
 
 
 # REGRESIÓN LOGÍSTICA
@@ -688,12 +651,13 @@ for (col in colnames(datos_logistica)) {
   }
 }
 
-boxplot(datos_logistica$ph, main="Boxplot de ph", ylab="ph")
+# Boxplot de la variable dependiente "ph"
+boxplot(datos_logistica$ph, main="Boxplot de ph", ylab="ph", range = 2)
 
 # Boxplots de las variables independientes
 for (col in colnames(datos_logistica)) {
   if (col != "ph") {
-    boxplot(datos_logistica[, col], main=paste("Boxplot de", col), ylab=col)
+    boxplot(datos_logistica[, col], main=paste("Boxplot de", col), ylab=col, range = 2)
   }
 }
 
@@ -762,12 +726,13 @@ for (col in colnames(datos_logistica)) {
     boxplot(datos_logistica[, col], main=paste("Boxplot de", col, "(sin outliers)"), ylab=col, range = 3)
   }
 }
-boxplot(datos_logistica$ph, main="Boxplot de ph", ylab="ph")
+# Boxplot de la variable dependiente "ph" después de eliminar outliers
+boxplot(datos_logistica$ph, main="Boxplot de ph", ylab="ph", range = 2)
 
 # Boxplots de las variables independientes
 for (col in colnames(datos_logistica)) {
   if (col != "ph") {
-    boxplot(datos_logistica[, col], main=paste("Boxplot de", col), ylab=col)
+    boxplot(datos_logistica[, col], main=paste("Boxplot de", col), ylab=col, range = 2)
   }
 }
 
@@ -847,7 +812,7 @@ VP=conf_mat$table[1,1]
 VN=conf_mat$table[2,2]
 FP=conf_mat$table[1,2]
 FN=conf_mat$table[2,1]
-(accuracy=(VP+VN)/(VP+FN+VN+FP)) # En conclusión, tengo un 56'41% de acierto.
+(accuracy=(VP+VN)/(VP+FN+VN+FP)) # En conclusión, tengo un 56'27% de acierto.
 (error=(FN+FP)/(VP+FN+VN+FP))
 (sensibilidad=VP/(VP+FN))
 (especificidad=VN/(VN+FP))
