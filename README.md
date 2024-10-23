@@ -7,15 +7,21 @@ Este proyecto implementa un Sistema Basado en Conocimiento (SBC) con un motor de
 El repositorio está compuesto por los siguientes archivos:
 
 ├── base_laboral.txt        # Base de conocimiento sobre trabajos y habilidades
+
 ├── base_enfermedades.txt    # Base de conocimiento sobre enfermedades y síntomas
+
 ├── config.toml             # Archivo de configuración para la lógica difusa
+
 └── p2.py                   # Script principal con el motor de inferencia
 
 ### Descripción de los archivos
 
   - base_laboral.txt: Contiene una base de conocimiento enfocada en la adquisición de talento, con reglas sobre trabajos y habilidades.
+    
   - base_enfermedades.txt: Contiene una base de conocimiento sobre enfermedades y sus respectivos síntomas.
+    
   - config.toml: Archivo de configuración para definir el tipo de lógica difusa y los rangos de respuesta.
+    
   - p2.py: Archivo principal del programa, que contiene el motor de inferencia y la lógica para la ejecución del sistema.
 
 ## Requisitos
@@ -30,6 +36,7 @@ Antes de ejecutar el proyecto, asegúrate de tener instalado lo siguiente:
 ### Instalación de dependencias
 
 Puedes instalar las dependencias necesarias ejecutando:
+
 pip install click tomli    # Para Python 3.10 o versiones anteriores
 
 ## Ejecución del código
