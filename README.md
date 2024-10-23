@@ -2,6 +2,22 @@
 
 Este proyecto implementa un Sistema Basado en Conocimiento (SBC) con un motor de inferencia que utiliza lógica difusa para deducir hechos a partir de una base de reglas. El sistema permite agregar hechos, imprimir la base de conocimiento y realizar consultas mediante razonamiento hacia atrás.
 
+## Estructura del repositorio
+
+El repositorio está compuesto por los siguientes archivos:
+
+├── base_laboral.txt        # Base de conocimiento sobre trabajos y habilidades
+├── base_enfermedades.txt    # Base de conocimiento sobre enfermedades y síntomas
+├── config.toml             # Archivo de configuración para la lógica difusa
+└── p2.py                   # Script principal con el motor de inferencia
+
+### Descripción de los archivos
+
+  - base_laboral.txt: Contiene una base de conocimiento enfocada en la adquisición de talento, con reglas sobre trabajos y habilidades.
+  - base_enfermedades.txt: Contiene una base de conocimiento sobre enfermedades y sus respectivos síntomas.
+  - config.toml: Archivo de configuración para definir el tipo de lógica difusa y los rangos de respuesta.
+  - p2.py: Archivo principal del programa, que contiene el motor de inferencia y la lógica para la ejecución del sistema.
+
 ## Requisitos
 
 Antes de ejecutar el proyecto, asegúrate de tener instalado lo siguiente:
@@ -14,7 +30,7 @@ Antes de ejecutar el proyecto, asegúrate de tener instalado lo siguiente:
 ### Instalación de dependencias
 
 Puedes instalar las dependencias necesarias ejecutando:
-pip install click tomli  # Para Python 3.10 o versiones anteriores
+pip install click tomli    # Para Python 3.10 o versiones anteriores
 
 ## Ejecución del código
 
@@ -37,11 +53,11 @@ python p2.py <archivo_bc>
 Después de ejecutar el programa, puedes interactuar con él utilizando los siguientes comandos en la consola:
 
   - Agregar un hecho: Para agregar un nuevo hecho a la base de conocimiento. 
-    - Formato: add <hecho> [grado_de_verdad]
+    - Formato: add `<hecho>` [grado_de_verdad]
     - Ejemplo: add profesor [0.8]
 
   - Realizar una consulta: Para preguntar si un hecho es cierto.
-    - Formato: <hecho>?
+    - Formato: `<hecho>`?
     - Ejemplo: lluvia?
 
   - Imprimir la base de conocimiento: Para mostrar todas las reglas y hechos cargados en la base de conocimiento.
@@ -49,3 +65,8 @@ Después de ejecutar el programa, puedes interactuar con él utilizando los sigu
       
   - Salir del programa: Para finalizar la ejecución.
     - Comando: quit
+
+### Estudiantes
+
+- Mario López Díaz
+- Ignacio Gutiérrez Sánchez
